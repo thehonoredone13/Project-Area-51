@@ -162,7 +162,9 @@
     const errDiv = document.getElementById('login-error');
 
     if (userVal === 'Satwik M' && passVal === 'satwik123') {
-      errDiv.style.display = 'none';
+      errDiv.style.display = 'none'
+        window.location.href = "admin_home.html";
+      
       // Redirect to admin page upon successful authentication
       window.location.href = 'admin_home.html';
     } else if (userVal === 'Kush M' && passVal === 'kush123') {
