@@ -77,6 +77,37 @@
   .footer-inner{max-width:1120px;margin:0 auto;padding:0 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
   footer .logo{color:var(--paper);}
   footer .logo-mark{filter:brightness(0) invert(1);}
+  /* Darkens the screen */
+.overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7); /* 70% opacity */
+  z-index: 9998; /* Just below the tooltip */
+  display: none; /* Hidden by default */
+}
+
+/* Tutorial box */
+.tutorial-card {
+  position: fixed;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  z-index: 9999; /* Highest layer */
+  display: none;
+  width: 250px;
+}
+
+/* Class added to the feature you want to highlight */
+.highlight-target {
+  position: relative !important; /* Pulls it out of normal flow */
+  z-index: 9999 !important; /* Matches the tooltip layer */
+  box-shadow: 0 0 0 10px white, 0 0 20px rgba(255,255,255,0.5); /* Glow effect */
+}
+
 </style>
 </head>
 <body>
@@ -146,6 +177,16 @@
       <div class="status-msg" id="status-msg"></div>
     </form>
   </div>
+  <!-- Dark background covering the screen -->
+<div id="tutorial-overlay" class="overlay-backdrop"></div>
+
+<!-- Floating card for instructions -->
+<div id="tutorial-tooltip" class="tutorial-card">
+  <h3>Step 1: Click Here</h3>
+  <p>This button opens your project dashboard.</p>
+  <button onclick="nextStep()">Next</button>
+</div>
+
 </section>
 <footer>
   <div class="footer-inner">
@@ -303,6 +344,28 @@
   submitBtn.textContent = "Submit Registration";
 });
   });
+
+    function showTutorialStep(targetElementId) {
+  const target = document.getElementById(targetElementId);
+  const backdrop = document.getElementById('tutorial-overlay');
+  const tooltip = document.getElementById('tutorial-tooltip');
+
+  // 1. Show the backdrop
+  backdrop.style.display = 'block';
+
+  // 2. Highlight the target element
+  target.classList.add('highlight-target');
+
+  // 3. Position the tooltip directly below the target element
+  const rect = target.getBoundingClientRect();
+  tooltip.style.display = 'block';
+  tooltip.style.top = (rect.bottom + 15) + 'px'; // 15px gap below
+  tooltip.style.left = rect.left + 'px';
+}
+
+// Example usage: Highlight a button with id="submit-btn"
+showTutorialStep('submit-btn');
+
 </script>
 
 </body>
