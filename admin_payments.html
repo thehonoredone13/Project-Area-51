@@ -238,7 +238,6 @@
 
   let rawRegistrations = [];
 
-  // LOCAL STORAGE PERSISTENCE HELPERS
   function getLocalPaymentStatuses() {
     try {
       return JSON.parse(localStorage.getItem("payment_statuses_cache") || "{}");
@@ -267,9 +266,6 @@
     });
   }
 
-  // FEE STRUCTURE CONFIGURATION
-  const BASE_FEE = 100;       // Base registration fee
-  const PER_EVENT_FEE = 50;   // Fee per selected event
   const CURRENCY_SYMBOL = "₹";
 
   function getRecordId(row) {
@@ -284,20 +280,47 @@
     return String(row.Events || row.events || row["Selected Events"] || row["SelectedEvents"] || row.Event || '—').trim();
   }
 
-  function getNumericAmount(eventsString, explicitAmount) {
-    if (explicitAmount !== undefined && explicitAmount !== null && explicitAmount !== '' && !isNaN(explicitAmount)) {
-      return Number(explicitAmount);
-    }
-    if (!eventsString || eventsString === '—') return 0;
-    
-    const eventList = eventsString.split(',').map(e => e.trim()).filter(e => e.length > 0);
-    if (eventList.length === 0) return 0;
+  /**
+   * Calculate Fee dynamically according to event tier structure:
+   * 1 Event  = 100
+   * 2 Events = 200
+   * 3 Events = 250
+   * 4 Events = 300
+   * 5 Events = 350
+   */
+  function calculateFeeFromEvents(eventsStr) {
+    if (!eventsStr || eventsStr === '—') return 0;
+    const count = eventsStr.split(',').map(e => e.trim()).filter(e => e.length > 0).length;
 
-    return BASE_FEE + (eventList.length * PER_EVENT_FEE);
+    if (count === 1) return 100;
+    if (count === 2) return 200;
+    if (count === 3) return 250;
+    if (count === 4) return 300;
+    if (count >= 5) return 350;
+
+    return 0;
   }
 
-  function calculateAmount(eventsString, explicitAmount) {
-    const total = getNumericAmount(eventsString, explicitAmount);
+  function getNumericAmount(row) {
+    const eventsStr = getRecordEvents(row);
+    const computedFee = calculateFeeFromEvents(eventsStr);
+
+    if (computedFee > 0) {
+      return computedFee;
+    }
+
+    // Fallback to explicit row amount if event string calculation yields 0
+    const explicitAmount = row.Amount || row.amount || row.Fee || row.fee || row["Total Fee"] || row["Total Amount"] || row["Amount Due"] || row.AmountDue;
+    if (explicitAmount !== undefined && explicitAmount !== null && explicitAmount !== '') {
+      const parsed = parseFloat(String(explicitAmount).replace(/[^0-9.]/g, ''));
+      if (!isNaN(parsed)) return parsed;
+    }
+
+    return 0;
+  }
+
+  function calculateAmount(row) {
+    const total = getNumericAmount(row);
     return `${CURRENCY_SYMBOL}${total}`;
   }
 
@@ -310,19 +333,14 @@
       const isPaid = status.toLowerCase() === "paid";
 
       if (isPaid) {
-        const explicitAmount = row.Amount || row.amount || row.Fee || row.fee || row["Total Fee"] || row["Total Amount"];
-        const eventsStr = getRecordEvents(row);
-        const amount = getNumericAmount(eventsStr, explicitAmount);
-        
+        const amount = getNumericAmount(row);
         totalCollected += amount;
 
-        // Calculate amount per event for this competitor
+        const eventsStr = getRecordEvents(row);
         if (eventsStr !== '—') {
           const eventsList = eventsStr.split(',').map(e => e.trim()).filter(e => e.length > 0);
           if (eventsList.length > 0) {
-            // Distribute amount equally among events, or attribute PER_EVENT_FEE per event
-            const perEventShare = explicitAmount ? (amount / eventsList.length) : PER_EVENT_FEE;
-            
+            const perEventShare = amount / eventsList.length;
             eventsList.forEach(evt => {
               eventCollections[evt] = (eventCollections[evt] || 0) + perEventShare;
             });
@@ -331,10 +349,8 @@
       }
     });
 
-    // Update Overall Total Display
     document.getElementById("totalCollected").innerText = `${CURRENCY_SYMBOL}${totalCollected.toLocaleString()}`;
 
-    // Update Event Breakdown Grid
     const grid = document.getElementById("eventStatsGrid");
     const eventKeys = Object.keys(eventCollections);
 
@@ -458,9 +474,7 @@
       const recId = getRecordId(row);
       const recName = getRecordName(row);
       const recEvents = getRecordEvents(row);
-      
-      const explicitAmount = row.Amount || row.amount || row.Fee || row.fee || row["Total Fee"] || row["Total Amount"];
-      const amountFormatted = calculateAmount(recEvents, explicitAmount);
+      const amountFormatted = calculateAmount(row);
 
       const status = row["Payment Status"] || row.PaymentStatus || row.FeeStatus || row.Status || "Pending";
       const isPaid = String(status).toLowerCase() === "paid";
@@ -501,7 +515,6 @@
       btn.innerText = "Updating...";
     }
 
-    // Save locally first so UI reflects instantly
     saveLocalPaymentStatus(id, targetStatus);
     const item = rawRegistrations.find(r => getRecordId(r) === String(id));
     if (item) {
@@ -511,11 +524,9 @@
       item.Status = targetStatus;
     }
     
-    // Recalculate financial stats and apply filter/sort
     calculateCollections(rawRegistrations);
     applyFilterAndSort();
 
-    // Send update request to Google Sheet backend
     fetch(REGISTRATION_API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
