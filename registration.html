@@ -78,9 +78,95 @@
   footer .logo{color:var(--paper);}
   footer .logo-mark{filter:brightness(0) invert(1);}
 
+  /* TUTORIAL OVERLAY STYLES */
+  .tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(18, 23, 43, 0.75);
+    z-index: 1000;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .tutorial-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .tutorial-box {
+    position: absolute;
+    background: #fff;
+    color: var(--ink);
+    padding: 18px 22px;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    max-width: 280px;
+    z-index: 1002;
+  }
+  .tutorial-box::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 24px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #fff;
+  }
+  .tutorial-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .tutorial-text {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+  .tutorial-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .tutorial-btn-close {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .volunteer-highlight {
+    position: relative;
+    z-index: 1001 !important;
+    background: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px var(--cube-yellow);
+  }
 </style>
 </head>
 <body>
+
+<!-- Tutorial Overlay Container -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-box" id="tutorialBox">
+    <div class="tutorial-title">Want to help out?</div>
+    <div class="tutorial-text">Click here to volunteer and make this event a success!</div>
+    <div class="tutorial-actions">
+      <button class="tutorial-btn-close" id="closeTutorialBtn">Got it</button>
+    </div>
+  </div>
+</div>
+
 <nav>
   <div class="nav-inner">
     <a href="#" class="logo">
@@ -88,7 +174,7 @@
     </a>
     <div class="nav-links">
       <a href="#" class="active">Register</a>
-      <a href="volunteer.html">Volunteer</a>
+      <a href="volunteer.html" id="volunteerLink">Volunteer</a>
     </div>
   </div>
 </nav>
@@ -130,7 +216,7 @@
           <div class="event-check" data-event="megaminx" style="--e-color:var(--cube-green);">
             <span class="event-dot"></span><span class="name">Megaminx</span><span class="check-icon"></span>
           </div>
-           <div class="event-check" data-event="4x4" style="--e-color:var(--cube-orange);">
+            <div class="event-check" data-event="4x4" style="--e-color:var(--cube-orange);">
             <span class="event-dot"></span><span class="name">4x4</span><span class="check-icon"></span>
            </div>
         </div>
@@ -147,8 +233,6 @@
       <div class="status-msg" id="status-msg"></div>
     </form>
   </div>
-  <!-- Dark background covering the screen -->
-
 </section>
 <footer>
   <div class="footer-inner">
@@ -156,7 +240,7 @@
   </div>
 </footer>
 
-  <script>
+<script>
   let selectedGrade = null;
   const form = document.getElementById('reg-form');
   const nameInput = document.getElementById('name');
@@ -258,14 +342,14 @@
     statusMsg.style.display = "none";
     statusMsg.className = "status-msg";
 
-   fetch(REGISTRATION_API_URL, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'text/plain;charset=utf-8'
-  },
-  body: JSON.stringify(payload)
-})
-.then(res => res.json())
+    fetch(REGISTRATION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
     .then(data => {
       // 1. Check for Duplicate Registration
       if (data.duplicate) {
@@ -296,22 +380,56 @@
         throw new Error(data.error || "Submission failed");
       }
     })
-.catch(err => {
-  console.error("Registration error:", err);
-  statusMsg.textContent = "There was an error submitting your registration. Please try again.";
-  statusMsg.className = "status-msg error";
-  statusMsg.style.display = "block";
-})
-.finally(() => {
-  submitBtn.textContent = "Submit Registration";
-});
+    .catch(err => {
+      console.error("Registration error:", err);
+      statusMsg.textContent = "There was an error submitting your registration. Please try again.";
+      statusMsg.className = "status-msg error";
+      statusMsg.style.display = "block";
+    })
+    .finally(() => {
+      submitBtn.textContent = "Submit Registration";
+    });
   });
 
+  // Tutorial Positioning & Visibility Logic
+  function positionTutorial() {
+    const volunteerLink = document.getElementById('volunteerLink');
+    const tutorialBox = document.getElementById('tutorialBox');
+    
+    if (volunteerLink && tutorialBox) {
+      const rect = volunteerLink.getBoundingClientRect();
+      tutorialBox.style.top = `${rect.bottom + 12}px`;
+      tutorialBox.style.left = `${rect.left + (rect.width / 2) - 230}px`;
+    }
+  }
 
+  function dismissTutorial() {
+    const overlay = document.getElementById('tutorialOverlay');
+    const volunteerLink = document.getElementById('volunteerLink');
+    overlay.classList.remove('active');
+    volunteerLink.classList.remove('volunteer-highlight');
+  }
 
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('tutorialOverlay');
+    const volunteerLink = document.getElementById('volunteerLink');
+    const closeBtn = document.getElementById('closeTutorialBtn');
 
+    // Show tutorial after brief delay
+    setTimeout(() => {
+      positionTutorial();
+      volunteerLink.classList.add('volunteer-highlight');
+      overlay.classList.add('active');
+    }, 400);
+
+    closeBtn.addEventListener('click', dismissTutorial);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) dismissTutorial();
+    });
+
+    window.addEventListener('resize', positionTutorial);
+  });
 </script>
 
 </body>
 </html>
-  
